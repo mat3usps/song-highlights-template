@@ -9,3 +9,6 @@ outputs/
 
 # LangGraph API
 .langgraph_api
+
+# Local SQLite preferences DB
+preferences.db

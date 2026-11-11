@@ -8,10 +8,10 @@
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f postgres",
-    "chat:erickwendel": "node --experimental-strip-types --env-file .env src/index.ts --user erickwendel",
+    "chat:mateuspereira": "node --experimental-strip-types --env-file .env src/index.ts --user erickwendel",
     "chat:ana": "node --experimental-strip-types --env-file .env src/index.ts --user ana",
     "test": "node --experimental-strip-types --env-file .env --test tests/**/*.test.ts",
-    "test:watch": "node --experimental-strip-types --env-file .env --test --watch tests/**/*.test.ts",
+    "test:dev": "node --experimental-strip-types --env-file .env --test --watch tests/**/*.test.ts",
     "langgraph:serve": "npx @langchain/langgraph-cli dev"
   },
   "keywords": [
