@@ -1,62 +1,51 @@
-import {
-  StateGraph,
-  START,
-  END,
-  MessagesZodMeta,
-} from "@langchain/langgraph";
+import { END, MessagesZodMeta, START, StateGraph } from "@langchain/langgraph";
 import { withLangGraph } from "@langchain/langgraph/zod";
 import { z } from "zod/v3";
 
-import type { BaseMessage } from '@langchain/core/messages';
-import { OpenRouterService } from '../services/openrouterService.ts';
-import { createChatNode } from './nodes/chatNode.ts';
-import { createSummarizationNode } from './nodes/summarizationNode.ts';
-import { createSavePreferencesNode } from './nodes/savePreferencesNode.ts';
-import { routeAfterChat, routeAfterSavePreferences } from './nodes/edgeConditions.ts';
+import type { BaseMessage } from "@langchain/core/messages";
+import { type MemoryService } from "../services/memoryService.ts";
+import { OpenRouterService } from "../services/openrouterService.ts";
+import { type PreferencesService } from "../services/preferencesService.ts";
+import { createChatNode } from "./nodes/chatNode.ts";
+import { routeAfterChat, routeAfterSavePreferences } from "./nodes/edgeConditions.ts";
+import { createSavePreferencesNode } from "./nodes/savePreferencesNode.ts";
+import { createSummarizationNode } from "./nodes/summarizationNode.ts";
 
 const ChatStateAnnotation = z.object({
-  messages: withLangGraph(
-    z.custom<BaseMessage[]>(),
-    MessagesZodMeta),
-  userContext: z.string().optional(),
-  extractedPreferences: z.any().optional(),
-  needsSummarization: z.boolean().optional(),
-  conversationSummary: z.any().optional(),
-  userId: z.string().optional(),
+    messages: withLangGraph(z.custom<BaseMessage[]>(), MessagesZodMeta),
+    userContext: z.string().optional(),
+    extractedPreferences: z.any().optional(),
+    needsSummarization: z.boolean().optional(),
+    conversationSummary: z.any().optional(),
+    userId: z.string().optional(),
 });
 
 export type GraphState = z.infer<typeof ChatStateAnnotation>;
 
 export function buildChatGraph(
-  llmClient: OpenRouterService,
+    llmClient: OpenRouterService,
+    preferencesService: PreferencesService,
+    memoryService: MemoryService
 ) {
-  const graph = new StateGraph(ChatStateAnnotation)
-    .addNode('chat', createChatNode(llmClient))
-    .addNode('savePreferences', createSavePreferencesNode())
-    .addNode('summarize', createSummarizationNode(llmClient))
+    const graph = new StateGraph(ChatStateAnnotation)
+        .addNode("chat", createChatNode(llmClient, preferencesService))
+        .addNode("savePreferences", createSavePreferencesNode(preferencesService))
+        .addNode("summarize", createSummarizationNode(llmClient, preferencesService))
 
-    .addEdge(START, 'chat')
+        .addEdge(START, "chat")
 
-    .addConditionalEdges(
-      'chat',
-      routeAfterChat,
-      {
-        savePreferences: 'savePreferences',
-        summarize: 'summarize',
-        end: END,
-      }
-    )
+        .addConditionalEdges("chat", routeAfterChat, {
+            savePreferences: "savePreferences",
+            summarize: "summarize",
+            end: END,
+        })
 
-    .addConditionalEdges(
-      'savePreferences',
-      routeAfterSavePreferences,
-      {
-        summarize: 'summarize',
-        end: END,
-      }
-    )
+        .addConditionalEdges("savePreferences", routeAfterSavePreferences, {
+            summarize: "summarize",
+            end: END,
+        })
 
-    .addEdge('summarize', END);
+        .addEdge("summarize", END);
 
-  return graph.compile();
+    return graph.compile({ checkpointer: memoryService.checkpointer, store: memoryService.store });
 }
